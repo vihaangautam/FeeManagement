@@ -9,8 +9,9 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (token) {
+      const API_BASE = import.meta.env.VITE_API_URL || '';
       // Validate token on mount
-      fetch('/api/auth/me', {
+      fetch(`${API_BASE}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then(res => {

@@ -16,8 +16,8 @@ export default function Login() {
     e.preventDefault();
     setError('');
     setLoading(true);
-
-    const endpoint = isSignup ? '/api/auth/register' : '/api/auth/login';
+    const API_BASE = import.meta.env.VITE_API_URL || '';
+    const endpoint = isSignup ? `${API_BASE}/api/auth/register` : `${API_BASE}/api/auth/login`;
     const body = isSignup
       ? { name: form.name, email: form.email, password: form.password }
       : { email: form.email, password: form.password };
