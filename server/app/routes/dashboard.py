@@ -29,8 +29,8 @@ async def get_dashboard_stats():
     expected = sum(s.get("monthly_fee", 0) for s in students)
     pending = max(0, expected - collected)
 
-    # Recent payments (last 5)
-    recent = await db.fee_records.find().sort("created_at", -1).to_list(5)
+    # Recent payments (last 15)
+    recent = await db.fee_records.find().sort("created_at", -1).to_list(15)
     recent_list = []
     for r in recent:
         student_name = ""

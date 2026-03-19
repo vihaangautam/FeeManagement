@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Download } from 'lucide-react';
-import { fetchBatches, fetchStudents, fetchFeeStatus, exportFees } from '../api';
-import * as XLSX from 'xlsx';
+import { fetchBatches, fetchStudents, fetchFeeStatus, exportFeesAdvanced } from '../api';
 
 const MONTH_NAMES_SHORT = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 const FULL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -51,16 +50,15 @@ export default function Reports() {
 
   const handleExport = async () => {
     try {
-      const exportMonth = now.getMonth() + 1;
-      const result = await exportFees(exportMonth, year);
-      const ws = XLSX.utils.json_to_sheet(result.data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, `${FULL_MONTHS[exportMonth - 1]} ${year}`);
-      ws['!cols'] = [
-        { wch: 20 }, { wch: 18 }, { wch: 12 }, { wch: 14 },
-        { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 20 },
-      ];
-      XLSX.writeFile(wb, `Fees_${FULL_MONTHS[exportMonth - 1]}_${year}.xlsx`);
+      const blob = await exportFeesAdvanced(year);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `TutorFlow_Export_${year}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (err) {
       alert('Export failed: ' + err.message);
     }
@@ -116,23 +114,26 @@ export default function Reports() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider sticky left-0 bg-bg-secondary z-10 min-w-[180px]">Student Name</th>
+                  <th className="text-left px-3 sm:px-5 py-3 sm:py-3.5 text-[10px] sm:text-xs font-semibold text-text-muted uppercase tracking-wider sticky left-0 bg-bg-secondary z-10 min-w-[130px] sm:min-w-[180px]">Student Name</th>
                   {MONTH_NAMES_SHORT.map((m, i) => (
-                    <th key={i} className="text-center px-3 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider min-w-[60px]">{m}</th>
+                    <th key={i} className="text-center px-1.5 sm:px-3 py-3 sm:py-3.5 text-[10px] sm:text-xs font-semibold text-text-muted uppercase tracking-wider min-w-[40px] sm:min-w-[60px]">{m}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
                 {filteredStudents.map(student => (
                   <tr key={student.id} className="hover:bg-bg-tertiary/20 transition-colors">
-                    <td className="px-5 py-3 sticky left-0 bg-bg-secondary z-10">
-                      <p className="font-medium text-sm">{student.name}</p>
-                      <p className="text-xs text-text-muted">{student.batch_name}</p>
+                    <td className="px-3 sm:px-5 py-2.5 sm:py-3 sticky left-0 bg-bg-secondary z-10 border-r border-border/30">
+                      <p className="font-medium text-xs sm:text-sm truncate max-w-[110px] sm:max-w-none">{student.name}</p>
+                      <p className="text-[10px] sm:text-xs text-text-muted truncate max-w-[110px] sm:max-w-none">{student.batch_name}</p>
                     </td>
                     {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
                       const status = getStatus(student.id, m);
                       let dotColor = 'bg-border'; // default gray
                       let title = 'No data';
+                      
+                      const isFuture = year > now.getFullYear() || (year === now.getFullYear() && m > now.getMonth() + 1);
+
                       if (status) {
                         if (status.status === 'paid') {
                           dotColor = 'bg-success';
@@ -141,14 +142,18 @@ export default function Reports() {
                           dotColor = 'bg-warning';
                           title = `Partial: ₹${status.total_paid}/${status.monthly_fee}`;
                         } else if (status.status === 'pending') {
-                          dotColor = 'bg-danger';
-                          title = `Pending ₹${status.monthly_fee}`;
+                          if (!isFuture) {
+                            dotColor = 'bg-danger';
+                            title = `Pending ₹${status.monthly_fee}`;
+                          } else {
+                            title = `Upcoming ₹${status.monthly_fee}`;
+                          }
                         }
                       }
                       return (
-                        <td key={m} className="text-center px-3 py-3">
+                        <td key={m} className="text-center px-1.5 sm:px-3 py-2.5 sm:py-3 border-l border-border/10">
                           <div
-                            className={`w-3 h-3 rounded-full mx-auto ${dotColor} transition-all`}
+                            className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full mx-auto ${dotColor} transition-all`}
                             title={title}
                           />
                         </td>

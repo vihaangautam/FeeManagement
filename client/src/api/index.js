@@ -58,6 +58,26 @@ export const createFee = (data) => request('/api/fees', { method: 'POST', body: 
 export const deleteFee = (id) => request(`/api/fees/${id}`, { method: 'DELETE' });
 export const exportFees = (month, year) => request(`/api/fees/export?month=${month}&year=${year}`);
 
+export const exportFeesAdvanced = async (year) => {
+  const url = `${API_BASE}/api/fees/export/advanced?year=${year}`;
+  const token = localStorage.getItem('tt_token');
+  const res = await fetch(url, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) {
+    if (res.status === 401) {
+      localStorage.removeItem('tt_token');
+      localStorage.removeItem('tt_user');
+      window.location.href = '/login';
+      return;
+    }
+    throw new Error(`HTTP ${res.status}`);
+  }
+  return res.blob();
+};
+
 // ── Dashboard ─────────────────────────────────────────
 
 export const fetchDashboard = () => request('/api/dashboard');

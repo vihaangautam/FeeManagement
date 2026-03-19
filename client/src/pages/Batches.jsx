@@ -165,7 +165,7 @@ export default function Batches() {
     const extraCount = Math.max(0, batchStudents.length - 3);
 
     return (
-      <div key={batch.id} className="glass-card p-5 animate-fade-in flex flex-col justify-between min-h-[160px] relative group">
+      <div key={batch.id} className={`glass-card p-5 animate-fade-in flex flex-col justify-between min-h-[160px] relative group ${menuOpen === batch.id ? 'z-30' : 'z-10'}`}>
         {/* Header */}
         <div>
           <div className="flex items-start justify-between mb-2">
@@ -220,13 +220,13 @@ export default function Batches() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Batches & Students</h1>
-          <p className="text-text-secondary text-sm mt-1">Manage your classes and enrollments.</p>
+          <h1 className="text-2xl md:text-3xl font-bold leading-tight">Batches &<br className="sm:hidden" /> Students</h1>
+          <p className="text-text-secondary text-[11px] sm:text-sm mt-1">Manage your classes and enrollments.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => openBatchModal()}>
-          <Plus size={18} />
+        <button className="btn btn-primary py-2 px-3.5 text-xs sm:py-2.5 sm:px-5 sm:text-sm shrink-0" onClick={() => openBatchModal()}>
+          <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
           New Batch
         </button>
       </div>

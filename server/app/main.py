@@ -7,7 +7,7 @@ from app.auth import decode_token
 from app.routes import batches, students, fee_records, dashboard, auth
 
 app = FastAPI(
-    title="TuitionTracker API",
+    title="TutorFlow API",
     description="Student & Fee Management for Tuition Teachers",
     version="2.0.0",
     redirect_slashes=False,
@@ -68,7 +68,7 @@ app.include_router(dashboard.router)
 
 @app.get("/")
 async def root():
-    return {"message": "TuitionTracker API is running"}
+    return {"message": "TutorFlow API is running"}
 
 
 @app.get("/health")

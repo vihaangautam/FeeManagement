@@ -73,7 +73,7 @@ export default function Fees() {
     if (student) {
       setPayForm({
         student_id: student.student_id,
-        amount_paid: student.monthly_fee || '',
+        amount_paid: student.monthly_fee ? Math.max(0, student.monthly_fee - (student.total_paid || 0)) : '',
         date_paid: today,
         fee_month: month,
         fee_year: year,
@@ -120,10 +120,12 @@ export default function Fees() {
 
   const handleStudentSelect = (studentId) => {
     const student = allStudents.find(s => s.id === studentId);
+    const statusRecord = feeStatus.find(f => f.student_id === studentId);
+    const remaining = student ? Math.max(0, student.monthly_fee - (statusRecord?.total_paid || 0)) : '';
     setPayForm(prev => ({
       ...prev,
       student_id: studentId,
-      amount_paid: student?.monthly_fee || prev.amount_paid,
+      amount_paid: remaining || prev.amount_paid,
     }));
   };
 
@@ -142,13 +144,13 @@ export default function Fees() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Log Fees</h1>
-          <p className="text-text-secondary text-sm mt-1">Track and record monthly payments.</p>
+          <p className="text-text-secondary text-[11px] sm:text-sm mt-1">Track and record payments.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => openPayModal()}>
-          <Plus size={18} /> Record Payment
+        <button className="btn btn-primary py-2 px-3.5 text-xs sm:py-2.5 sm:px-5 sm:text-sm shrink-0" onClick={() => openPayModal()}>
+          <Plus size={16} className="sm:w-[18px] sm:h-[18px]" /> Record Payment
         </button>
       </div>
 
@@ -202,26 +204,26 @@ export default function Fees() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider">Student Name</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider hidden sm:table-cell">Batch</th>
-                  <th className="text-center px-5 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider">Status</th>
-                  <th className="text-right px-5 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider">Amount</th>
-                  <th className="text-center px-5 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider w-[100px]">Action</th>
+                  <th className="text-left px-3 sm:px-5 py-3 sm:py-3.5 text-[10px] sm:text-xs font-semibold text-text-muted uppercase tracking-wider">Student Name</th>
+                  <th className="text-left px-3 sm:px-5 py-3 sm:py-3.5 text-[10px] sm:text-xs font-semibold text-text-muted uppercase tracking-wider hidden sm:table-cell">Batch</th>
+                  <th className="text-center px-3 sm:px-5 py-3 sm:py-3.5 text-[10px] sm:text-xs font-semibold text-text-muted uppercase tracking-wider">Status</th>
+                  <th className="text-right px-3 sm:px-5 py-3 sm:py-3.5 text-[10px] sm:text-xs font-semibold text-text-muted uppercase tracking-wider">Amount</th>
+                  <th className="text-center px-3 sm:px-5 py-3 sm:py-3.5 text-[10px] sm:text-xs font-semibold text-text-muted uppercase tracking-wider w-[80px] sm:w-[100px]">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
                 {filtered.map((student) => (
                   <tr key={student.student_id} className="hover:bg-bg-tertiary/20 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${getAvatarColor(student.student_name)}`}>
+                    <td className="px-3 sm:px-5 py-2.5 sm:py-3.5">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white text-[10px] sm:text-xs font-bold shrink-0 ${getAvatarColor(student.student_name)}`}>
                           {getInitial(student.student_name)}
                         </div>
-                        <span className="font-medium">{student.student_name}</span>
+                        <span className="font-medium text-xs sm:text-sm">{student.student_name}</span>
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 text-text-secondary hidden sm:table-cell">{student.batch_name}</td>
-                    <td className="px-5 py-3.5 text-center">
+                    <td className="px-3 sm:px-5 py-2.5 sm:py-3.5 text-text-secondary hidden sm:table-cell mt-1">{student.batch_name}</td>
+                    <td className="px-3 sm:px-5 py-2.5 sm:py-3.5 text-center">
                       <span className={`badge ${
                         student.status === 'paid' ? 'badge-paid' :
                         student.status === 'partial' ? 'badge-partial' :
@@ -232,14 +234,14 @@ export default function Fees() {
                          '✗ Pending'}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-right font-medium">
+                    <td className="px-3 sm:px-5 py-2.5 sm:py-3.5 text-right font-medium text-xs sm:text-sm">
                       {student.status === 'partial' ? (
                         <span>₹{student.total_paid} <span className="text-text-muted">/ ₹{student.monthly_fee}</span></span>
                       ) : (
                         <span>₹{student.monthly_fee}</span>
                       )}
                     </td>
-                    <td className="px-5 py-3.5 text-center">
+                    <td className="px-3 sm:px-5 py-2.5 sm:py-3.5 text-center">
                       {student.status !== 'paid' ? (
                         <button className="btn btn-primary btn-sm" onClick={() => openPayModal(student)}>
                           Mark Paid

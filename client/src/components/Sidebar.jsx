@@ -25,11 +25,11 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="p-6 border-b border-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-indigo flex items-center justify-center">
-            <GraduationCap size={22} className="text-white" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-indigo flex items-center justify-center overflow-hidden">
+            <img src="/logo.png" alt="TutorFlow Logo" className="w-[85%] h-[85%] object-contain" />
           </div>
           <div>
-            <h1 className="font-bold text-lg leading-tight">TuitionTracker</h1>
+            <h1 className="font-bold text-lg leading-tight">Tutor Flow</h1>
             <p className="text-xs text-text-muted uppercase tracking-wider">Fee Management</p>
           </div>
         </div>
@@ -42,10 +42,9 @@ export default function Sidebar() {
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                isActive
-                  ? 'bg-accent-light text-accent'
-                  : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
+              `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${isActive
+                ? 'bg-accent-light text-accent'
+                : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
               }`
             }
           >

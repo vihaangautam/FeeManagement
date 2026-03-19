@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, IndianRupee, AlertCircle, TrendingUp, Plus, ChevronRight, FileSpreadsheet } from 'lucide-react';
+import { Users, IndianRupee, AlertCircle, TrendingUp, Plus, ChevronRight, FileSpreadsheet, LogOut } from 'lucide-react';
 import { fetchDashboard } from '../api';
+import { useAuth } from '../context/AuthContext';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -24,6 +25,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   useEffect(() => {
     fetchDashboard()
@@ -74,13 +76,13 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Dashboard</h1>
-          <p className="text-text-secondary text-sm mt-1">Here's what's happening with your classes today.</p>
+          <p className="text-text-secondary text-[11px] sm:text-sm mt-1">Here's what's happening with your classes today.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate('/fees')}>
-          <Plus size={18} />
+        <button className="btn btn-primary py-2 px-3.5 text-xs sm:py-2.5 sm:px-5 sm:text-sm shrink-0" onClick={() => navigate('/fees')}>
+          <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
           Log Fee
         </button>
       </div>
@@ -88,14 +90,14 @@ export default function Dashboard() {
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((card, i) => (
-          <div key={i} className="glass-card p-5 animate-fade-in" style={{ animationDelay: `${i * 80}ms` }}>
-            <div className="flex items-start justify-between mb-3">
-              <span className="text-xs text-text-secondary font-medium">{card.label}</span>
-              <div className={`p-2 rounded-xl ${card.iconBg}`}>
-                {card.icon}
+          <div key={i} className="glass-card p-4 sm:p-5 animate-fade-in" style={{ animationDelay: `${i * 80}ms` }}>
+            <div className="flex items-start justify-between mb-2 sm:mb-3">
+              <span className="text-[10px] sm:text-xs text-text-secondary font-medium tracking-tight pr-1 leading-tight">{card.label}</span>
+              <div className={`p-1.5 sm:p-2 rounded-xl shrink-0 ${card.iconBg}`}>
+                <div className="scale-75 sm:scale-100">{card.icon}</div>
               </div>
             </div>
-            <p className="text-2xl md:text-3xl font-bold tracking-tight">{card.value}</p>
+            <p className="text-[20px] sm:text-2xl md:text-3xl font-bold tracking-tight mt-1 truncate">{card.value}</p>
           </div>
         ))}
       </div>
@@ -113,7 +115,7 @@ export default function Dashboard() {
           {s.recent_payments.length === 0 ? (
             <p className="text-text-muted text-sm py-8 text-center">No payments recorded yet</p>
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-1 max-h-[360px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
               {s.recent_payments.map((p, i) => (
                 <div key={p.id || i} className="flex items-center gap-3 py-3 px-2 rounded-xl hover:bg-bg-tertiary/40 transition-colors">
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0 ${getAvatarColor(p.student_name)}`}>
@@ -162,6 +164,14 @@ export default function Dashboard() {
               <FileSpreadsheet size={18} className="text-text-secondary" />
               <span className="flex-1 text-left text-sm font-medium">View Reports</span>
               <ChevronRight size={16} className="text-text-muted group-hover:text-text-secondary transition-colors" />
+            </button>
+            <button
+              className="w-full lg:hidden flex items-center gap-3 p-4 rounded-xl bg-danger/10 border border-danger/20 hover:border-danger/40 hover:bg-danger/20 transition-all group mt-2"
+              onClick={logout}
+            >
+              <LogOut size={18} className="text-danger" />
+              <span className="flex-1 text-left text-sm font-medium text-danger">Logout</span>
+              <ChevronRight size={16} className="text-danger/50 group-hover:text-danger transition-colors" />
             </button>
           </div>
         </div>

@@ -47,11 +47,11 @@ export default function Login() {
     <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 mb-4">
-            <GraduationCap size={32} className="text-white" />
+        <div className="text-center mb-8 transition-all duration-300">
+          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 overflow-hidden shadow-lg transition-colors duration-500 ${isSignup ? 'bg-gradient-to-br from-indigo-500 to-violet-600' : 'bg-gradient-to-br from-emerald-500 to-teal-600'}`}>
+            <img src="/logo.png" alt="TutorFlow Logo" className="w-[60%] h-[60%] object-contain" />
           </div>
-          <h1 className="text-2xl font-bold">TuitionTracker</h1>
+          <h1 className="text-2xl font-bold">TutorFlow</h1>
           <p className="text-text-secondary text-sm mt-1">Fee Management System</p>
         </div>
 
@@ -61,7 +61,7 @@ export default function Login() {
             {isSignup ? 'Create Account' : 'Welcome Back'}
           </h2>
           <p className="text-text-secondary text-sm mb-6">
-            {isSignup ? 'Get started with TuitionTracker' : 'Sign in to your account'}
+            {isSignup ? 'Get started with TutorFlow' : 'Sign in to your account'}
           </p>
 
           {error && (
@@ -118,11 +118,15 @@ export default function Login() {
 
             <button
               type="submit"
-              className="btn btn-primary w-full justify-center py-3 text-base"
+              className={`w-full justify-center py-3 text-base font-semibold rounded-xl text-white shadow-md transition-all duration-300 ${
+                isSignup 
+                  ? 'bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 hover:shadow-lg hover:-translate-y-0.5' 
+                  : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 hover:shadow-lg hover:-translate-y-0.5'
+              }`}
               disabled={loading}
             >
               {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" />
               ) : (
                 isSignup ? 'Create Account' : 'Sign In'
               )}
