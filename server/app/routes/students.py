@@ -31,7 +31,7 @@ async def student_doc_to_response(doc: dict) -> dict:
     }
 
 
-@router.get("/")
+@router.get("")
 async def list_students(batch_id: Optional[str] = Query(None)):
     db = get_database()
     query = {}
@@ -73,7 +73,7 @@ async def get_student(student_id: str):
     return response
 
 
-@router.post("/", status_code=201)
+@router.post("", status_code=201)
 async def create_student(data: StudentCreate):
     db = get_database()
     # Verify batch exists

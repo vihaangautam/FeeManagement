@@ -48,7 +48,7 @@ async def fee_doc_to_response(doc: dict) -> dict:
     }
 
 
-@router.get("/")
+@router.get("")
 async def list_fee_records(
     month: Optional[int] = Query(None, ge=1, le=12),
     year: Optional[int] = Query(None, ge=2020, le=2100),
@@ -178,7 +178,7 @@ async def export_fees(
     return {"month": month, "year": year, "data": rows}
 
 
-@router.post("/", status_code=201)
+@router.post("", status_code=201)
 async def create_fee_record(data: FeeRecordCreate):
     db = get_database()
     # Verify student exists

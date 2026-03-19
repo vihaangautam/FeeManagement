@@ -1,10 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, IndianRupee, AlertCircle, TrendingUp, Plus, Clock } from 'lucide-react';
-import StatCard from '../components/StatCard';
+import { Users, IndianRupee, AlertCircle, TrendingUp, Plus, ChevronRight, FileSpreadsheet } from 'lucide-react';
 import { fetchDashboard } from '../api';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const AVATAR_COLORS = [
+  'bg-emerald-500', 'bg-violet-500', 'bg-amber-500', 'bg-rose-500',
+  'bg-cyan-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500',
+];
+
+function getAvatarColor(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getInitial(name) {
+  return name?.charAt(0)?.toUpperCase() || '?';
+}
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -27,6 +41,35 @@ export default function Dashboard() {
   }
 
   const s = stats || { total_students: 0, total_batches: 0, collected_this_month: 0, pending_this_month: 0, expected_this_month: 0, recent_payments: [] };
+  const now = new Date();
+  const monthLabel = MONTH_NAMES[now.getMonth()];
+
+  const statCards = [
+    {
+      label: 'Total Students',
+      value: s.total_students,
+      icon: <Users size={22} />,
+      iconBg: 'bg-indigo-light text-indigo',
+    },
+    {
+      label: `Collected (${monthLabel})`,
+      value: `₹${s.collected_this_month.toLocaleString()}`,
+      icon: <TrendingUp size={22} />,
+      iconBg: 'bg-success-light text-success',
+    },
+    {
+      label: `Pending (${monthLabel})`,
+      value: `₹${s.pending_this_month.toLocaleString()}`,
+      icon: <AlertCircle size={22} />,
+      iconBg: 'bg-danger-light text-danger',
+    },
+    {
+      label: `Expected (${monthLabel})`,
+      value: `₹${s.expected_this_month.toLocaleString()}`,
+      icon: <IndianRupee size={22} />,
+      iconBg: 'bg-accent-light text-accent',
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -34,63 +77,93 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Dashboard</h1>
-          <p className="text-text-secondary text-sm mt-1">Welcome back! Here's your overview.</p>
+          <p className="text-text-secondary text-sm mt-1">Here's what's happening with your classes today.</p>
         </div>
         <button className="btn btn-primary" onClick={() => navigate('/fees')}>
           <Plus size={18} />
-          <span className="hidden sm:inline">Log Fee</span>
+          Log Fee
         </button>
       </div>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={Users} label="Total Students" value={s.total_students} color="indigo" delay={0} />
-        <StatCard icon={TrendingUp} label="Collected" value={`₹${s.collected_this_month.toLocaleString()}`} color="success" delay={100} />
-        <StatCard icon={AlertCircle} label="Pending" value={`₹${s.pending_this_month.toLocaleString()}`} color="danger" delay={200} />
-        <StatCard icon={IndianRupee} label="Expected" value={`₹${s.expected_this_month.toLocaleString()}`} color="accent" delay={300} />
+        {statCards.map((card, i) => (
+          <div key={i} className="glass-card p-5 animate-fade-in" style={{ animationDelay: `${i * 80}ms` }}>
+            <div className="flex items-start justify-between mb-3">
+              <span className="text-xs text-text-secondary font-medium">{card.label}</span>
+              <div className={`p-2 rounded-xl ${card.iconBg}`}>
+                {card.icon}
+              </div>
+            </div>
+            <p className="text-2xl md:text-3xl font-bold tracking-tight">{card.value}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Quick Actions + Recent */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Quick Actions */}
+      {/* Recent Payments + Quick Actions */}
+      <div className="grid lg:grid-cols-[1fr_320px] gap-6">
+        {/* Recent Payments */}
         <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: '200ms' }}>
-          <h2 className="font-semibold text-lg mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <button className="btn btn-secondary w-full justify-center" onClick={() => navigate('/batches')}>
-              <Users size={18} /> Manage Batches
-            </button>
-            <button className="btn btn-secondary w-full justify-center" onClick={() => navigate('/fees')}>
-              <IndianRupee size={18} /> Record Payment
-            </button>
-            <button className="btn btn-secondary w-full justify-center col-span-2" onClick={() => navigate('/reports')}>
-              <TrendingUp size={18} /> View Reports
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-semibold text-lg">Recent Payments</h2>
+            <button className="text-sm text-accent hover:text-accent-hover flex items-center gap-1 transition-colors" onClick={() => navigate('/fees')}>
+              View all <ChevronRight size={14} />
             </button>
           </div>
-        </div>
-
-        {/* Recent Payments */}
-        <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: '300ms' }}>
-          <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
-            <Clock size={18} className="text-text-secondary" />
-            Recent Payments
-          </h2>
           {s.recent_payments.length === 0 ? (
-            <p className="text-text-muted text-sm py-4 text-center">No payments recorded yet</p>
+            <p className="text-text-muted text-sm py-8 text-center">No payments recorded yet</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-1">
               {s.recent_payments.map((p, i) => (
-                <div key={p.id || i} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div>
+                <div key={p.id || i} className="flex items-center gap-3 py-3 px-2 rounded-xl hover:bg-bg-tertiary/40 transition-colors">
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0 ${getAvatarColor(p.student_name)}`}>
+                    {getInitial(p.student_name)}
+                  </div>
+                  <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm">{p.student_name}</p>
-                    <p className="text-xs text-text-muted">
+                    <p className="text-xs text-text-muted truncate">
                       {p.batch_name} · {MONTH_NAMES[p.fee_month - 1]} {p.fee_year}
                     </p>
                   </div>
-                  <span className="font-semibold text-accent">₹{p.amount_paid}</span>
+                  <div className="text-right shrink-0">
+                    <p className="font-semibold text-sm">₹{p.amount_paid}</p>
+                    <span className="badge badge-paid text-[10px]">Paid</span>
+                  </div>
                 </div>
               ))}
             </div>
           )}
+        </div>
+
+        {/* Quick Actions */}
+        <div className="glass-card p-6 animate-fade-in" style={{ animationDelay: '300ms' }}>
+          <h2 className="font-semibold text-lg mb-5">Quick Actions</h2>
+          <div className="space-y-3">
+            <button
+              className="w-full flex items-center gap-3 p-4 rounded-xl bg-bg-tertiary/50 border border-border hover:border-border-light hover:bg-bg-tertiary transition-all group"
+              onClick={() => navigate('/batches')}
+            >
+              <Users size={18} className="text-text-secondary" />
+              <span className="flex-1 text-left text-sm font-medium">Manage Batches</span>
+              <ChevronRight size={16} className="text-text-muted group-hover:text-text-secondary transition-colors" />
+            </button>
+            <button
+              className="w-full flex items-center gap-3 p-4 rounded-xl bg-bg-tertiary/50 border border-border hover:border-border-light hover:bg-bg-tertiary transition-all group"
+              onClick={() => navigate('/fees')}
+            >
+              <IndianRupee size={18} className="text-text-secondary" />
+              <span className="flex-1 text-left text-sm font-medium">Record Payment</span>
+              <ChevronRight size={16} className="text-text-muted group-hover:text-text-secondary transition-colors" />
+            </button>
+            <button
+              className="w-full flex items-center gap-3 p-4 rounded-xl bg-bg-tertiary/50 border border-border hover:border-border-light hover:bg-bg-tertiary transition-all group"
+              onClick={() => navigate('/reports')}
+            >
+              <FileSpreadsheet size={18} className="text-text-secondary" />
+              <span className="flex-1 text-left text-sm font-medium">View Reports</span>
+              <ChevronRight size={16} className="text-text-muted group-hover:text-text-secondary transition-colors" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

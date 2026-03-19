@@ -1,5 +1,6 @@
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, GraduationCap, IndianRupee, FileSpreadsheet } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Users, IndianRupee, FileSpreadsheet, LogOut, GraduationCap } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const links = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -9,6 +10,16 @@ const links = [
 ];
 
 export default function Sidebar() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const initial = user?.name?.charAt(0)?.toUpperCase() || 'U';
+
   return (
     <aside className="hidden lg:flex flex-col w-64 h-screen bg-bg-secondary border-r border-border fixed left-0 top-0 z-40">
       {/* Logo */}
@@ -19,7 +30,7 @@ export default function Sidebar() {
           </div>
           <div>
             <h1 className="font-bold text-lg leading-tight">TuitionTracker</h1>
-            <p className="text-xs text-text-muted">Fee Management</p>
+            <p className="text-xs text-text-muted uppercase tracking-wider">Fee Management</p>
           </div>
         </div>
       </div>
@@ -44,9 +55,24 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
+      {/* Footer — User + Logout */}
       <div className="p-4 border-t border-border">
-        <p className="text-xs text-text-muted text-center">v1.0 — Made with ♥</p>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-accent-light flex items-center justify-center text-accent text-xs font-bold">
+            {initial}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium leading-tight truncate">{user?.name || 'User'}</p>
+            <p className="text-xs text-text-muted">v2.0 Beta</p>
+          </div>
+          <button
+            className="p-1.5 rounded-lg hover:bg-danger-light text-text-muted hover:text-danger transition-colors"
+            onClick={handleLogout}
+            title="Logout"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
       </div>
     </aside>
   );

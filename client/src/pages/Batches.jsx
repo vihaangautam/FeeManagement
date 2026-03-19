@@ -1,17 +1,33 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Users, ChevronDown, ChevronRight, MapPin, Clock, Building2, Home } from 'lucide-react';
+import { Plus, MoreVertical, Clock, Users, Building2, Home } from 'lucide-react';
 import Modal from '../components/Modal';
 import { fetchBatches, createBatch, updateBatch, deleteBatch, fetchStudents, createStudent, updateStudent, deleteStudent } from '../api';
+
+const AVATAR_COLORS = [
+  'bg-emerald-500', 'bg-violet-500', 'bg-amber-500', 'bg-rose-500',
+  'bg-cyan-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500',
+];
+
+function getAvatarColor(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getInitial(name) {
+  return name?.charAt(0)?.toUpperCase() || '?';
+}
 
 export default function Batches() {
   const [batches, setBatches] = useState([]);
   const [students, setStudents] = useState({});
-  const [expandedBatch, setExpandedBatch] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(null);
 
   // Modal states
   const [batchModal, setBatchModal] = useState({ open: false, editing: null });
   const [studentModal, setStudentModal] = useState({ open: false, editing: null, batchId: null });
+  const [studentListModal, setStudentListModal] = useState({ open: false, batch: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, type: null, item: null });
 
   // Form states
@@ -20,12 +36,19 @@ export default function Batches() {
 
   useEffect(() => {
     loadBatches();
+    const handleClick = () => setMenuOpen(null);
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
   }, []);
 
   const loadBatches = async () => {
     try {
       const data = await fetchBatches();
       setBatches(data);
+      // Pre-load students for avatar display
+      for (const batch of data) {
+        loadStudents(batch.id);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -39,15 +62,6 @@ export default function Batches() {
       setStudents(prev => ({ ...prev, [batchId]: data }));
     } catch (err) {
       console.error(err);
-    }
-  };
-
-  const toggleBatch = (batchId) => {
-    if (expandedBatch === batchId) {
-      setExpandedBatch(null);
-    } else {
-      setExpandedBatch(batchId);
-      if (!students[batchId]) loadStudents(batchId);
     }
   };
 
@@ -120,10 +134,13 @@ export default function Batches() {
         loadBatches();
       } else {
         await deleteStudent(deleteModal.item.id);
-        loadStudents(deleteModal.item.batch_id);
+        if (deleteModal.item.batch_id) {
+          loadStudents(deleteModal.item.batch_id);
+        }
         loadBatches();
       }
       setDeleteModal({ open: false, type: null, item: null });
+      setStudentListModal({ open: false, batch: null });
     } catch (err) {
       alert(err.message);
     }
@@ -143,76 +160,129 @@ export default function Batches() {
   }
 
   const renderBatchCard = (batch) => {
-    const isExpanded = expandedBatch === batch.id;
     const batchStudents = students[batch.id] || [];
+    const displayStudents = batchStudents.slice(0, 3);
+    const extraCount = Math.max(0, batchStudents.length - 3);
 
     return (
-      <div key={batch.id} className="glass-card overflow-hidden animate-fade-in">
-        {/* Batch Header */}
-        <div
-          className="p-4 flex items-center justify-between cursor-pointer hover:bg-bg-tertiary/50 transition-colors"
-          onClick={() => toggleBatch(batch.id)}
-        >
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-xl ${batch.type === 'coaching' ? 'bg-indigo-light text-indigo' : 'bg-accent-light text-accent'}`}>
-              {batch.type === 'coaching' ? <Building2 size={18} /> : <Home size={18} />}
-            </div>
-            <div>
-              <h3 className="font-semibold text-sm md:text-base">{batch.name}</h3>
-              <div className="flex items-center gap-2 text-xs text-text-muted mt-0.5">
-                {batch.location && (
-                  <>
-                    <MapPin size={12} /> {batch.location}
-                    <span>·</span>
-                  </>
-                )}
-                {batch.timing && (
-                  <>
-                    <Clock size={12} /> {batch.timing}
-                    <span>·</span>
-                  </>
-                )}
-                <Users size={12} /> {batch.student_count} students
-              </div>
+      <div key={batch.id} className="glass-card p-5 animate-fade-in flex flex-col justify-between min-h-[160px] relative group">
+        {/* Header */}
+        <div>
+          <div className="flex items-start justify-between mb-2">
+            <h3 className="font-semibold text-[15px] leading-snug pr-6">{batch.name}</h3>
+            <div className="relative">
+              <button
+                className="p-1 rounded-lg hover:bg-bg-tertiary text-text-muted hover:text-text-primary transition-colors"
+                onClick={(e) => { e.stopPropagation(); setMenuOpen(menuOpen === batch.id ? null : batch.id); }}
+              >
+                <MoreVertical size={16} />
+              </button>
+              {menuOpen === batch.id && (
+                <div className="absolute right-0 top-8 w-40 bg-bg-secondary border border-border rounded-xl shadow-2xl z-20 py-1 animate-scale-in">
+                  <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-tertiary transition-colors" onClick={() => { setMenuOpen(null); setStudentListModal({ open: true, batch }); loadStudents(batch.id); }}>View Students</button>
+                  <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-tertiary transition-colors" onClick={() => { setMenuOpen(null); openStudentModal(batch.id); }}>Add Student</button>
+                  <button className="w-full text-left px-4 py-2 text-sm hover:bg-bg-tertiary transition-colors" onClick={() => { setMenuOpen(null); openBatchModal(batch); }}>Edit Batch</button>
+                  <button className="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger-light transition-colors" onClick={() => { setMenuOpen(null); setDeleteModal({ open: true, type: 'batch', item: batch }); }}>Delete Batch</button>
+                </div>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button className="btn-icon" onClick={(e) => { e.stopPropagation(); openBatchModal(batch); }}>
-              <Edit2 size={14} />
-            </button>
-            <button className="btn-icon hover:!text-danger hover:!border-danger" onClick={(e) => { e.stopPropagation(); setDeleteModal({ open: true, type: 'batch', item: batch }); }}>
-              <Trash2 size={14} />
-            </button>
-            {isExpanded ? <ChevronDown size={18} className="text-text-muted" /> : <ChevronRight size={18} className="text-text-muted" />}
+          {/* Timing */}
+          <div className="flex items-center gap-3 text-xs text-text-muted">
+            {batch.timing && (
+              <span className="flex items-center gap-1">
+                <Clock size={12} /> {batch.timing}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Student List (Expanded) */}
-        {isExpanded && (
-          <div className="border-t border-border bg-bg-primary/50">
-            <div className="p-3">
-              <button className="btn btn-secondary btn-sm w-full justify-center" onClick={() => openStudentModal(batch.id)}>
-                <Plus size={14} /> Add Student
-              </button>
-            </div>
-            {batchStudents.length === 0 ? (
+        {/* Footer: Avatars + Count */}
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/50">
+          <div className="flex items-center -space-x-1.5">
+            {displayStudents.map((st, i) => (
+              <div key={st.id} className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold border-2 border-bg-secondary ${getAvatarColor(st.name)}`}>
+                {getInitial(st.name)}
+              </div>
+            ))}
+            {extraCount > 0 && (
+              <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-bg-secondary bg-bg-tertiary text-text-secondary">
+                +{extraCount}
+              </div>
+            )}
+          </div>
+          <span className="text-xs text-text-secondary font-medium">{batch.student_count} Students</span>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">Batches & Students</h1>
+          <p className="text-text-secondary text-sm mt-1">Manage your classes and enrollments.</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => openBatchModal()}>
+          <Plus size={18} />
+          New Batch
+        </button>
+      </div>
+
+      {/* Coaching Section */}
+      <div>
+        <h2 className="flex items-center gap-2 text-xs font-semibold text-text-muted uppercase tracking-widest mb-4">
+          <Building2 size={14} /> Coaching
+        </h2>
+        {coachingBatches.length === 0 ? (
+          <p className="text-text-muted text-sm glass-card p-8 text-center">No coaching batches yet. Create one!</p>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{coachingBatches.map(renderBatchCard)}</div>
+        )}
+      </div>
+
+      {/* Home Tuition Section */}
+      <div>
+        <h2 className="flex items-center gap-2 text-xs font-semibold text-text-muted uppercase tracking-widest mb-4">
+          <Home size={14} /> Home Tuition
+        </h2>
+        {homeBatches.length === 0 ? (
+          <p className="text-text-muted text-sm glass-card p-8 text-center">No home tuition groups yet. Create one!</p>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{homeBatches.map(renderBatchCard)}</div>
+        )}
+      </div>
+
+      {/* ── Student List Modal ────────────────────── */}
+      <Modal
+        isOpen={studentListModal.open}
+        onClose={() => setStudentListModal({ open: false, batch: null })}
+        title={studentListModal.batch ? `${studentListModal.batch.name} — Students` : 'Students'}
+        size="md"
+      >
+        {studentListModal.batch && (
+          <div>
+            <button className="btn btn-secondary btn-sm w-full justify-center mb-4" onClick={() => { setStudentListModal({ open: false, batch: null }); openStudentModal(studentListModal.batch.id); }}>
+              <Plus size={14} /> Add Student
+            </button>
+            {(students[studentListModal.batch.id] || []).length === 0 ? (
               <p className="text-text-muted text-sm text-center py-4">No students in this batch</p>
             ) : (
-              <div className="divide-y divide-border">
-                {batchStudents.map(student => (
-                  <div key={student.id} className="px-4 py-3 flex items-center justify-between hover:bg-bg-tertiary/30 transition-colors">
-                    <div>
+              <div className="space-y-1 max-h-80 overflow-y-auto">
+                {(students[studentListModal.batch.id] || []).map(student => (
+                  <div key={student.id} className="flex items-center gap-3 py-2.5 px-2 rounded-xl hover:bg-bg-tertiary/40 transition-colors">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${getAvatarColor(student.name)}`}>
+                      {getInitial(student.name)}
+                    </div>
+                    <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm">{student.name}</p>
-                      <p className="text-xs text-text-muted">
-                        {student.phone && `${student.phone} · `}₹{student.monthly_fee}/month
-                      </p>
+                      <p className="text-xs text-text-muted">{student.phone && `${student.phone} · `}₹{student.monthly_fee}/mo</p>
                     </div>
                     <div className="flex items-center gap-1">
-                      <button className="btn-icon" onClick={() => openStudentModal(batch.id, student)}>
-                        <Edit2 size={13} />
-                      </button>
-                      <button className="btn-icon hover:!text-danger hover:!border-danger" onClick={() => setDeleteModal({ open: true, type: 'student', item: student })}>
-                        <Trash2 size={13} />
+                      <button className="btn-icon" style={{ padding: '4px' }} onClick={() => { setStudentListModal({ open: false, batch: null }); openStudentModal(studentListModal.batch.id, student); }}>
+                        <MoreVertical size={14} />
                       </button>
                     </div>
                   </div>
@@ -221,47 +291,7 @@ export default function Batches() {
             )}
           </div>
         )}
-      </div>
-    );
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Batches & Students</h1>
-          <p className="text-text-secondary text-sm mt-1">{batches.length} batches · {batches.reduce((s, b) => s + b.student_count, 0)} students</p>
-        </div>
-        <button className="btn btn-primary" onClick={() => openBatchModal()}>
-          <Plus size={18} />
-          <span className="hidden sm:inline">New Batch</span>
-        </button>
-      </div>
-
-      {/* Coaching Section */}
-      <div>
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-text-secondary uppercase tracking-wider mb-3">
-          <Building2 size={16} /> Mindcrest / Coaching
-        </h2>
-        {coachingBatches.length === 0 ? (
-          <p className="text-text-muted text-sm glass-card p-6 text-center">No coaching batches yet. Create one!</p>
-        ) : (
-          <div className="space-y-3">{coachingBatches.map(renderBatchCard)}</div>
-        )}
-      </div>
-
-      {/* Home Tuition Section */}
-      <div>
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-text-secondary uppercase tracking-wider mb-3">
-          <Home size={16} /> Home Tuition
-        </h2>
-        {homeBatches.length === 0 ? (
-          <p className="text-text-muted text-sm glass-card p-6 text-center">No home tuition groups yet. Create one!</p>
-        ) : (
-          <div className="space-y-3">{homeBatches.map(renderBatchCard)}</div>
-        )}
-      </div>
+      </Modal>
 
       {/* ── Batch Modal ──────────────────────────── */}
       <Modal
@@ -272,7 +302,7 @@ export default function Batches() {
         <form onSubmit={handleBatchSubmit} className="space-y-4">
           <div>
             <label className="form-label">Batch Name</label>
-            <input className="form-input" placeholder="e.g. Mindcrest Batch A" value={batchForm.name} onChange={e => setBatchForm(p => ({ ...p, name: e.target.value }))} required />
+            <input className="form-input" placeholder="e.g. Class 10 - Maths Masterclass" value={batchForm.name} onChange={e => setBatchForm(p => ({ ...p, name: e.target.value }))} required />
           </div>
           <div>
             <label className="form-label">Type</label>
@@ -287,7 +317,7 @@ export default function Batches() {
           </div>
           <div>
             <label className="form-label">Batch Timing (optional)</label>
-            <input className="form-input" placeholder="e.g. Mon/Wed/Fri 4-5 PM" value={batchForm.timing} onChange={e => setBatchForm(p => ({ ...p, timing: e.target.value }))} />
+            <input className="form-input" placeholder="e.g. Mon, Wed, Fri · 5:00 PM" value={batchForm.timing} onChange={e => setBatchForm(p => ({ ...p, timing: e.target.value }))} />
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" className="btn btn-secondary flex-1" onClick={() => setBatchModal({ open: false, editing: null })}>Cancel</button>
@@ -305,7 +335,7 @@ export default function Batches() {
         <form onSubmit={handleStudentSubmit} className="space-y-4">
           <div>
             <label className="form-label">Student Name</label>
-            <input className="form-input" placeholder="e.g. Rahul Sharma" value={studentForm.name} onChange={e => setStudentForm(p => ({ ...p, name: e.target.value }))} required />
+            <input className="form-input" placeholder="e.g. Aarav Patel" value={studentForm.name} onChange={e => setStudentForm(p => ({ ...p, name: e.target.value }))} required />
           </div>
           <div>
             <label className="form-label">Phone (optional)</label>
@@ -313,7 +343,7 @@ export default function Batches() {
           </div>
           <div>
             <label className="form-label">Monthly Fee (₹)</label>
-            <input className="form-input" type="number" min="0" placeholder="e.g. 2000" value={studentForm.monthly_fee} onChange={e => setStudentForm(p => ({ ...p, monthly_fee: e.target.value }))} />
+            <input className="form-input" type="number" min="0" placeholder="e.g. 2500" value={studentForm.monthly_fee} onChange={e => setStudentForm(p => ({ ...p, monthly_fee: e.target.value }))} />
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" className="btn btn-secondary flex-1" onClick={() => setStudentModal({ open: false, editing: null, batchId: null })}>Cancel</button>

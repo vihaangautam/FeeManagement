@@ -20,7 +20,7 @@ def batch_doc_to_response(doc: dict, student_count: int = 0) -> dict:
     }
 
 
-@router.get("/")
+@router.get("")
 async def list_batches():
     db = get_database()
     batches = await db.batches.find().sort("created_at", -1).to_list(100)
@@ -44,7 +44,7 @@ async def get_batch(batch_id: str):
     return batch_doc_to_response(batch, count)
 
 
-@router.post("/", status_code=201)
+@router.post("", status_code=201)
 async def create_batch(data: BatchCreate):
     db = get_database()
     doc = {

@@ -1,9 +1,24 @@
 import { useState, useEffect } from 'react';
-import { Plus, IndianRupee, Check, X, AlertCircle } from 'lucide-react';
+import { Plus, Search, MoreVertical, IndianRupee } from 'lucide-react';
 import Modal from '../components/Modal';
 import { fetchBatches, fetchStudents, fetchFeeStatus, createFee, deleteFee } from '../api';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+const AVATAR_COLORS = [
+  'bg-emerald-500', 'bg-violet-500', 'bg-amber-500', 'bg-rose-500',
+  'bg-cyan-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500',
+];
+
+function getAvatarColor(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getInitial(name) {
+  return name?.charAt(0)?.toUpperCase() || '?';
+}
 
 export default function Fees() {
   const now = new Date();
@@ -13,6 +28,8 @@ export default function Fees() {
   const [batches, setBatches] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [menuOpen, setMenuOpen] = useState(null);
 
   // Payment modal
   const [payModal, setPayModal] = useState({ open: false, student: null });
@@ -24,6 +41,9 @@ export default function Fees() {
 
   useEffect(() => {
     loadBatchesAndStudents();
+    const handleClick = () => setMenuOpen(null);
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
   }, []);
 
   const loadData = async () => {
@@ -107,19 +127,17 @@ export default function Fees() {
     }));
   };
 
-  // Summary stats
+  // Filter
+  const filtered = feeStatus.filter(f =>
+    f.student_name.toLowerCase().includes(search.toLowerCase()) ||
+    f.batch_name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Summary
   const totalExpected = feeStatus.reduce((s, f) => s + f.monthly_fee, 0);
   const totalPaid = feeStatus.reduce((s, f) => s + f.total_paid, 0);
   const paidCount = feeStatus.filter(f => f.status === 'paid').length;
   const pendingCount = feeStatus.filter(f => f.status === 'pending' || f.status === 'partial').length;
-
-  // Group by batch
-  const grouped = {};
-  feeStatus.forEach(f => {
-    const key = f.batch_name || 'No Batch';
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(f);
-  });
 
   return (
     <div className="space-y-6">
@@ -127,95 +145,131 @@ export default function Fees() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Log Fees</h1>
-          <p className="text-text-secondary text-sm mt-1">Track and record payments</p>
+          <p className="text-text-secondary text-sm mt-1">Track and record monthly payments.</p>
         </div>
         <button className="btn btn-primary" onClick={() => openPayModal()}>
           <Plus size={18} /> Record Payment
         </button>
       </div>
 
-      {/* Month/Year Selector */}
+      {/* Month/Year Selector + Summary */}
       <div className="glass-card p-4 flex flex-wrap items-center gap-3">
-        <select className="form-select w-auto" value={month} onChange={e => setMonth(parseInt(e.target.value))}>
+        <select className="form-select w-auto min-w-[120px]" value={month} onChange={e => setMonth(parseInt(e.target.value))}>
           {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
         </select>
-        <select className="form-select w-auto" value={year} onChange={e => setYear(parseInt(e.target.value))}>
+        <select className="form-select w-auto min-w-[90px]" value={year} onChange={e => setYear(parseInt(e.target.value))}>
           {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
         </select>
         <div className="flex-1" />
-        <div className="flex items-center gap-4 text-sm">
-          <span className="text-text-secondary">
-            <span className="text-success font-semibold">{paidCount}</span> paid
+        <div className="flex items-center gap-4 text-sm flex-wrap">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-success" />
+            <span className="text-text-secondary">{paidCount} Paid</span>
           </span>
-          <span className="text-text-secondary">
-            <span className="text-danger font-semibold">{pendingCount}</span> pending
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-danger" />
+            <span className="text-text-secondary">{pendingCount} Pending</span>
           </span>
-          <span className="text-text-secondary">
-            ₹<span className="text-accent font-semibold">{totalPaid.toLocaleString()}</span>/{totalExpected.toLocaleString()}
+          <span className="text-text-secondary bg-bg-tertiary px-3 py-1 rounded-lg text-xs font-medium">
+            Collected: <span className="text-text-primary font-semibold">₹{totalPaid.toLocaleString()}</span> / ₹{totalExpected.toLocaleString()}
           </span>
         </div>
       </div>
 
-      {/* Fee Status Table */}
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+        <input
+          className="form-input pl-9"
+          placeholder="Search students..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+      </div>
+
+      {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center h-32">
           <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : feeStatus.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="glass-card p-12 text-center">
-          <AlertCircle size={40} className="text-text-muted mx-auto mb-3" />
-          <p className="text-text-muted">No students found. Add students in the Batches page first.</p>
+          <p className="text-text-muted">{search ? 'No students match your search.' : 'No students found. Add students in the Batches page.'}</p>
         </div>
       ) : (
-        Object.entries(grouped).map(([batchName, students]) => (
-          <div key={batchName} className="glass-card overflow-hidden animate-fade-in">
-            <div className="px-4 py-3 bg-bg-tertiary/50 border-b border-border">
-              <h3 className="font-semibold text-sm">{batchName}</h3>
-            </div>
-            <div className="divide-y divide-border">
-              {students.map(student => (
-                <div key={student.student_id} className="px-4 py-3 flex items-center justify-between hover:bg-bg-tertiary/20 transition-colors">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                      student.status === 'paid' ? 'bg-success-light text-success' :
-                      student.status === 'partial' ? 'bg-warning-light text-warning' :
-                      'bg-danger-light text-danger'
-                    }`}>
-                      {student.status === 'paid' ? <Check size={14} /> :
-                       student.status === 'partial' ? '!' : <X size={14} />}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{student.student_name}</p>
-                      <p className="text-xs text-text-muted">
-                        ₹{student.monthly_fee}/month
-                        {student.status === 'partial' && ` · Paid ₹${student.total_paid}`}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className={`badge ${
-                      student.status === 'paid' ? 'badge-paid' :
-                      student.status === 'partial' ? 'badge-partial' :
-                      'badge-pending'
-                    }`}>
-                      {student.status}
-                    </span>
-                    {student.status !== 'paid' && (
-                      <button className="btn btn-primary btn-sm" onClick={() => openPayModal(student)}>
-                        <IndianRupee size={13} />
-                      </button>
-                    )}
-                    {student.payments?.map(p => (
-                      <button key={p.id} className="btn-icon" title={`Delete ₹${p.amount_paid} payment`} onClick={() => handleDeletePayment(p.id)}>
-                        <X size={13} />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+        <div className="glass-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider">Student Name</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider hidden sm:table-cell">Batch</th>
+                  <th className="text-center px-5 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider">Status</th>
+                  <th className="text-right px-5 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider">Amount</th>
+                  <th className="text-center px-5 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider w-[100px]">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/50">
+                {filtered.map((student) => (
+                  <tr key={student.student_id} className="hover:bg-bg-tertiary/20 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${getAvatarColor(student.student_name)}`}>
+                          {getInitial(student.student_name)}
+                        </div>
+                        <span className="font-medium">{student.student_name}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5 text-text-secondary hidden sm:table-cell">{student.batch_name}</td>
+                    <td className="px-5 py-3.5 text-center">
+                      <span className={`badge ${
+                        student.status === 'paid' ? 'badge-paid' :
+                        student.status === 'partial' ? 'badge-partial' :
+                        'badge-pending'
+                      }`}>
+                        {student.status === 'paid' ? '✓ Paid' :
+                         student.status === 'partial' ? '⚠ Partial' :
+                         '✗ Pending'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-right font-medium">
+                      {student.status === 'partial' ? (
+                        <span>₹{student.total_paid} <span className="text-text-muted">/ ₹{student.monthly_fee}</span></span>
+                      ) : (
+                        <span>₹{student.monthly_fee}</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3.5 text-center">
+                      {student.status !== 'paid' ? (
+                        <button className="btn btn-primary btn-sm" onClick={() => openPayModal(student)}>
+                          Mark Paid
+                        </button>
+                      ) : (
+                        <div className="relative inline-block">
+                          <button
+                            className="p-1 rounded-lg hover:bg-bg-tertiary text-text-muted hover:text-text-primary transition-colors"
+                            onClick={(e) => { e.stopPropagation(); setMenuOpen(menuOpen === student.student_id ? null : student.student_id); }}
+                          >
+                            <MoreVertical size={16} />
+                          </button>
+                          {menuOpen === student.student_id && (
+                            <div className="absolute right-0 top-8 w-40 bg-bg-secondary border border-border rounded-xl shadow-2xl z-20 py-1 animate-scale-in">
+                              {student.payments?.map(p => (
+                                <button key={p.id} className="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger-light transition-colors" onClick={() => { setMenuOpen(null); handleDeletePayment(p.id); }}>
+                                  Delete ₹{p.amount_paid}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ))
+        </div>
       )}
 
       {/* ── Payment Modal ────────────────────────── */}
@@ -245,7 +299,7 @@ export default function Fees() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="form-label">Amount (₹)</label>
-              <input className="form-input" type="number" min="1" placeholder="2000" value={payForm.amount_paid} onChange={e => setPayForm(p => ({ ...p, amount_paid: e.target.value }))} required />
+              <input className="form-input" type="number" min="1" placeholder="2500" value={payForm.amount_paid} onChange={e => setPayForm(p => ({ ...p, amount_paid: e.target.value }))} required />
             </div>
             <div>
               <label className="form-label">Date Paid</label>

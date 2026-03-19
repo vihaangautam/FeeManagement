@@ -2,12 +2,23 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
 
 async function request(path, options = {}) {
   const url = `${API_BASE}${path}`;
+  const token = localStorage.getItem('tt_token');
   const config = {
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     ...options,
   };
   const res = await fetch(url, config);
   if (!res.ok) {
+    if (res.status === 401) {
+      // Token expired — clear and redirect to login
+      localStorage.removeItem('tt_token');
+      localStorage.removeItem('tt_user');
+      window.location.href = '/login';
+      return;
+    }
     const err = await res.json().catch(() => ({ detail: 'Something went wrong' }));
     throw new Error(err.detail || `HTTP ${res.status}`);
   }

@@ -7,7 +7,7 @@ from app.database import get_database
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
-@router.get("/")
+@router.get("")
 async def get_dashboard_stats():
     db = get_database()
     now = datetime.utcnow()
