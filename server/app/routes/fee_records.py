@@ -206,47 +206,36 @@ async def export_fees_advanced(request: Request, year: int = Query(..., ge=2020,
         student_created_at = student.get("created_at", datetime.utcnow())
         join_year = student_created_at.year
         raw_join_month = student_created_at.month
-        
-        # If the student has backfilled payments before their profile creation date, 
-        # consider their "actual" join month as the earliest month they paid for.
-        first_paid_month = min([m for m, amt in student_payments[sid].items() if amt > 0], default=12)
-        join_month = min(raw_join_month, first_paid_month) if year == join_year else raw_join_month
+        join_month = raw_join_month
         
         if year < join_year:
             months_active = 0
         elif year == join_year:
-            if year == current_year:
-                months_active = max(0, current_month - join_month + 1)
-            else:
-                months_active = 12 - join_month + 1
+            months_active = 12 - join_month + 1
         elif year > join_year:
-            if year == current_year:
-                months_active = current_month
-            elif year < current_year:
-                months_active = 12
-            else:
-                months_active = 0
+            months_active = 12
 
         row = [student["name"], batch_name, batch_type, monthly_fee]
         
+        total_paid = 0
         for m in range(1, 13):
             paid = student_payments[sid].get(m)
             is_active = True
             if year < join_year or (year == join_year and m < join_month):
                 is_active = False
-            if year > current_year or (year == current_year and m > current_month):
-                is_active = False
                 
             if paid is not None and paid > 0:
                 row.append(paid)
+                total_paid += paid
             else:
                 if is_active:
                     row.append(0)
                 else:
                     row.append("") # blank
 
-        row.append(f"=SUM(E{row_idx}:P{row_idx})")
-        row.append(f"=D{row_idx}*{months_active}-Q{row_idx}")
+        row.append(total_paid)
+        balance = max(0, (monthly_fee * months_active) - total_paid)
+        row.append(balance)
         
         ws1.append(row)
         students_data.append({
@@ -302,14 +291,16 @@ async def export_fees_advanced(request: Request, year: int = Query(..., ge=2020,
         batch_students = [sd for sd in students_data if str(sd["batch_id"]) == bid]
         
         row = [bname]
+        total_collected = 0
         for m in range(1, 13):
             m_total = sum(student_payments[sd["sid"]].get(m, 0) for sd in batch_students)
             row.append(m_total)
+            total_collected += m_total
             
-        row.append(f"=SUM(B{s_row_idx}:M{s_row_idx})")
+        row.append(total_collected)
         expected = sum(sd["fee"] * sd["months_active"] for sd in batch_students)
         row.append(expected)
-        row.append(f"=O{s_row_idx}-N{s_row_idx}") # Expected - Collected
+        row.append(max(0, expected - total_collected)) # Expected - Collected
         ws3.append(row)
         s_row_idx += 1
 
