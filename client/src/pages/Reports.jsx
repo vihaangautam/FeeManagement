@@ -121,7 +121,23 @@ export default function Reports() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {filteredStudents.map(student => (
+                {filteredStudents.map(student => {
+                  const joinDate = new Date(student.joining_date || student.created_at || new Date());
+                  const joinYear = joinDate.getFullYear();
+                  const joinMonth = joinDate.getMonth() + 1;
+
+                  let firstPaidMonth = 12;
+                  let hasAnyPayment = false;
+                  for (let mo = 1; mo <= 12; mo++) {
+                    const st = getStatus(student.id, mo);
+                    if (st && st.total_paid > 0) {
+                      firstPaidMonth = Math.min(firstPaidMonth, mo);
+                      hasAnyPayment = true;
+                    }
+                  }
+                  const startMonth = hasAnyPayment ? Math.min(joinMonth, firstPaidMonth) : joinMonth;
+
+                  return (
                   <tr key={student.id} className="hover:bg-bg-tertiary/20 transition-colors">
                     <td className="px-3 sm:px-5 py-2.5 sm:py-3 sticky left-0 bg-bg-secondary z-10 border-r border-border/30">
                       <p className="font-medium text-xs sm:text-sm truncate max-w-[110px] sm:max-w-none">{student.name}</p>
@@ -133,6 +149,9 @@ export default function Reports() {
                       let title = 'No data';
                       
                       const isFuture = year > now.getFullYear() || (year === now.getFullYear() && m > now.getMonth() + 1);
+                      let isActive = true;
+                      if (year < joinYear) isActive = false;
+                      else if (year === joinYear && m < startMonth) isActive = false;
 
                       if (status) {
                         if (status.status === 'paid') {
@@ -142,11 +161,15 @@ export default function Reports() {
                           dotColor = 'bg-warning';
                           title = `Partial: ₹${status.total_paid}/${status.monthly_fee}`;
                         } else if (status.status === 'pending') {
-                          if (!isFuture) {
+                          if (isActive && !isFuture) {
                             dotColor = 'bg-danger';
                             title = `Pending ₹${status.monthly_fee}`;
-                          } else {
+                          } else if (isFuture && isActive) {
                             title = `Upcoming ₹${status.monthly_fee}`;
+                            dotColor = 'bg-border';
+                          } else {
+                            title = 'No data';
+                            dotColor = 'bg-border';
                           }
                         }
                       }
@@ -160,7 +183,8 @@ export default function Reports() {
                       );
                     })}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
