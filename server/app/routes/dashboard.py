@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from bson import ObjectId
 from datetime import datetime
 
@@ -8,41 +8,43 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
 @router.get("")
-async def get_dashboard_stats():
+async def get_dashboard_stats(request: Request):
     db = get_database()
+    user_id = request.state.user_id
     now = datetime.utcnow()
     current_month = now.month
     current_year = now.year
 
-    total_students = await db.students.count_documents({})
-    total_batches = await db.batches.count_documents({})
+    total_students = await db.students.count_documents({"user_id": user_id})
+    total_batches = await db.batches.count_documents({"user_id": user_id})
 
     # Calculate collected this month
     month_payments = await db.fee_records.find({
+        "user_id": user_id,
         "fee_month": current_month,
         "fee_year": current_year,
     }).to_list(5000)
     collected = sum(p.get("amount_paid", 0) for p in month_payments)
 
     # Calculate expected this month (sum of all students' monthly fees)
-    students = await db.students.find().to_list(500)
+    students = await db.students.find({"user_id": user_id}).to_list(500)
     expected = sum(s.get("monthly_fee", 0) for s in students)
     pending = max(0, expected - collected)
 
     # Recent payments (last 15)
-    recent = await db.fee_records.find().sort("created_at", -1).to_list(15)
+    recent = await db.fee_records.find({"user_id": user_id}).sort("created_at", -1).to_list(15)
     recent_list = []
     for r in recent:
         student_name = ""
         batch_name = ""
         if r.get("student_id"):
             try:
-                student = await db.students.find_one({"_id": ObjectId(r["student_id"])})
+                student = await db.students.find_one({"_id": ObjectId(r["student_id"]), "user_id": user_id})
                 if student:
                     student_name = student["name"]
                     if student.get("batch_id"):
                         try:
-                            batch = await db.batches.find_one({"_id": ObjectId(student["batch_id"])})
+                            batch = await db.batches.find_one({"_id": ObjectId(student["batch_id"]), "user_id": user_id})
                             if batch:
                                 batch_name = batch["name"]
                         except Exception:

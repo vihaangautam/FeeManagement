@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from bson import ObjectId
 from datetime import datetime
@@ -16,18 +16,18 @@ from app.models import FeeRecordCreate, FeeRecordResponse
 router = APIRouter(prefix="/api/fees", tags=["fees"])
 
 
-async def fee_doc_to_response(doc: dict) -> dict:
+async def fee_doc_to_response(doc: dict, user_id: str) -> dict:
     db = get_database()
     student_name = ""
     batch_name = ""
     if doc.get("student_id"):
         try:
-            student = await db.students.find_one({"_id": ObjectId(doc["student_id"])})
+            student = await db.students.find_one({"_id": ObjectId(doc["student_id"]), "user_id": user_id})
             if student:
                 student_name = student["name"]
                 if student.get("batch_id"):
                     try:
-                        batch = await db.batches.find_one({"_id": ObjectId(student["batch_id"])})
+                        batch = await db.batches.find_one({"_id": ObjectId(student["batch_id"]), "user_id": user_id})
                         if batch:
                             batch_name = batch["name"]
                     except Exception:
@@ -57,11 +57,13 @@ async def fee_doc_to_response(doc: dict) -> dict:
 
 @router.get("")
 async def list_fee_records(
+    request: Request,
     month: Optional[int] = Query(None, ge=1, le=12),
     year: Optional[int] = Query(None, ge=2020, le=2100),
 ):
     db = get_database()
-    query = {}
+    user_id = request.state.user_id
+    query = {"user_id": user_id}
     if month is not None:
         query["fee_month"] = month
     if year is not None:
@@ -69,18 +71,20 @@ async def list_fee_records(
     records = await db.fee_records.find(query).sort("created_at", -1).to_list(1000)
     result = []
     for r in records:
-        result.append(await fee_doc_to_response(r))
+        result.append(await fee_doc_to_response(r, user_id))
     return result
 
 
 @router.get("/status")
 async def get_fee_status(
+    request: Request,
     month: int = Query(..., ge=1, le=12),
     year: int = Query(..., ge=2020, le=2100),
 ):
     """Returns per-student fee status for a given month: paid, pending, partial."""
     db = get_database()
-    students = await db.students.find().sort("name", 1).to_list(500)
+    user_id = request.state.user_id
+    students = await db.students.find({"user_id": user_id}).sort("name", 1).to_list(500)
     result = []
     for student in students:
         sid = str(student["_id"])
@@ -88,13 +92,14 @@ async def get_fee_status(
         batch_name = ""
         if student.get("batch_id"):
             try:
-                batch = await db.batches.find_one({"_id": ObjectId(student["batch_id"])})
+                batch = await db.batches.find_one({"_id": ObjectId(student["batch_id"]), "user_id": user_id})
                 if batch:
                     batch_name = batch["name"]
             except Exception:
                 pass
         # Sum payments for this month
         payments = await db.fee_records.find({
+            "user_id": user_id,
             "student_id": sid,
             "fee_month": month,
             "fee_year": year,
@@ -131,25 +136,27 @@ async def get_fee_status(
 
 
 @router.get("/student/{student_id}")
-async def get_student_fees(student_id: str):
+async def get_student_fees(student_id: str, request: Request):
     db = get_database()
-    records = await db.fee_records.find({"student_id": student_id}).sort(
+    user_id = request.state.user_id
+    records = await db.fee_records.find({"student_id": student_id, "user_id": user_id}).sort(
         [("fee_year", -1), ("fee_month", -1)]
     ).to_list(200)
     result = []
     for r in records:
-        result.append(await fee_doc_to_response(r))
+        result.append(await fee_doc_to_response(r, user_id))
     return result
 
 
 @router.get("/export/advanced")
-async def export_fees_advanced(year: int = Query(..., ge=2020, le=2100)):
+async def export_fees_advanced(request: Request, year: int = Query(..., ge=2020, le=2100)):
     db = get_database()
-    students_cur = await db.students.find().sort("name", 1).to_list(1000)
-    batches_cur = await db.batches.find().to_list(100)
+    user_id = request.state.user_id
+    students_cur = await db.students.find({"user_id": user_id}).sort("name", 1).to_list(1000)
+    batches_cur = await db.batches.find({"user_id": user_id}).to_list(100)
     batch_map = {str(b["_id"]): b for b in batches_cur}
     
-    payments = await db.fee_records.find({"fee_year": year}).to_list(10000)
+    payments = await db.fee_records.find({"fee_year": year, "user_id": user_id}).to_list(10000)
     student_payments = defaultdict(lambda: defaultdict(int))
     for p in payments:
         sid = str(p.get("student_id"))
@@ -318,24 +325,27 @@ async def export_fees_advanced(year: int = Query(..., ge=2020, le=2100)):
 
 @router.get("/export")
 async def export_fees(
+    request: Request,
     month: int = Query(..., ge=1, le=12),
     year: int = Query(..., ge=2020, le=2100),
 ):
     """Returns structured data for Excel export of a given month."""
     db = get_database()
-    students = await db.students.find().sort("name", 1).to_list(500)
+    user_id = request.state.user_id
+    students = await db.students.find({"user_id": user_id}).sort("name", 1).to_list(500)
     rows = []
     for student in students:
         sid = str(student["_id"])
         batch_name = ""
         if student.get("batch_id"):
             try:
-                batch = await db.batches.find_one({"_id": ObjectId(student["batch_id"])})
+                batch = await db.batches.find_one({"_id": ObjectId(student["batch_id"]), "user_id": user_id})
                 if batch:
                     batch_name = batch["name"]
             except Exception:
                 pass
         payments = await db.fee_records.find({
+            "user_id": user_id,
             "student_id": sid,
             "fee_month": month,
             "fee_year": year,
@@ -360,16 +370,18 @@ async def export_fees(
 
 
 @router.post("", status_code=201)
-async def create_fee_record(data: FeeRecordCreate):
+async def create_fee_record(data: FeeRecordCreate, request: Request):
     db = get_database()
+    user_id = request.state.user_id
     # Verify student exists
     try:
-        student = await db.students.find_one({"_id": ObjectId(data.student_id)})
+        student = await db.students.find_one({"_id": ObjectId(data.student_id), "user_id": user_id})
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid student ID")
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
     doc = {
+        "user_id": user_id,
         "student_id": data.student_id,
         "amount_paid": data.amount_paid,
         "date_paid": datetime.combine(data.date_paid, datetime.min.time()),
@@ -380,14 +392,15 @@ async def create_fee_record(data: FeeRecordCreate):
     }
     result = await db.fee_records.insert_one(doc)
     doc["_id"] = result.inserted_id
-    return await fee_doc_to_response(doc)
+    return await fee_doc_to_response(doc, user_id)
 
 
 @router.delete("/{fee_id}")
-async def delete_fee_record(fee_id: str):
+async def delete_fee_record(fee_id: str, request: Request):
     db = get_database()
+    user_id = request.state.user_id
     try:
-        result = await db.fee_records.delete_one({"_id": ObjectId(fee_id)})
+        result = await db.fee_records.delete_one({"_id": ObjectId(fee_id), "user_id": user_id})
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid fee record ID")
     if result.deleted_count == 0:

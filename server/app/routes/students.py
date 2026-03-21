@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from bson import ObjectId
 from datetime import datetime
 from typing import Optional
@@ -9,12 +9,12 @@ from app.models import StudentCreate, StudentUpdate, StudentResponse
 router = APIRouter(prefix="/api/students", tags=["students"])
 
 
-async def student_doc_to_response(doc: dict) -> dict:
+async def student_doc_to_response(doc: dict, user_id: str) -> dict:
     db = get_database()
     batch_name = ""
     if doc.get("batch_id"):
         try:
-            batch = await db.batches.find_one({"_id": ObjectId(doc["batch_id"])})
+            batch = await db.batches.find_one({"_id": ObjectId(doc["batch_id"]), "user_id": user_id})
             if batch:
                 batch_name = batch["name"]
         except Exception:
@@ -32,30 +32,32 @@ async def student_doc_to_response(doc: dict) -> dict:
 
 
 @router.get("")
-async def list_students(batch_id: Optional[str] = Query(None)):
+async def list_students(request: Request, batch_id: Optional[str] = Query(None)):
     db = get_database()
-    query = {}
+    user_id = request.state.user_id
+    query = {"user_id": user_id}
     if batch_id:
         query["batch_id"] = batch_id
     students = await db.students.find(query).sort("name", 1).to_list(500)
     result = []
     for s in students:
-        result.append(await student_doc_to_response(s))
+        result.append(await student_doc_to_response(s, user_id))
     return result
 
 
 @router.get("/{student_id}")
-async def get_student(student_id: str):
+async def get_student(student_id: str, request: Request):
     db = get_database()
+    user_id = request.state.user_id
     try:
-        student = await db.students.find_one({"_id": ObjectId(student_id)})
+        student = await db.students.find_one({"_id": ObjectId(student_id), "user_id": user_id})
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid student ID")
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
-    response = await student_doc_to_response(student)
+    response = await student_doc_to_response(student, user_id)
     # Include payment history
-    payments = await db.fee_records.find({"student_id": student_id}).sort(
+    payments = await db.fee_records.find({"student_id": student_id, "user_id": user_id}).sort(
         [("fee_year", -1), ("fee_month", -1)]
     ).to_list(200)
     response["payments"] = [
@@ -74,11 +76,12 @@ async def get_student(student_id: str):
 
 
 @router.post("", status_code=201)
-async def create_student(data: StudentCreate):
+async def create_student(data: StudentCreate, request: Request):
     db = get_database()
+    user_id = request.state.user_id
     # Verify batch exists
     try:
-        batch = await db.batches.find_one({"_id": ObjectId(data.batch_id)})
+        batch = await db.batches.find_one({"_id": ObjectId(data.batch_id), "user_id": user_id})
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid batch ID")
     if not batch:
@@ -88,47 +91,50 @@ async def create_student(data: StudentCreate):
         "batch_id": data.batch_id,
         "phone": data.phone,
         "monthly_fee": data.monthly_fee,
+        "user_id": user_id,
         "joining_date": datetime.utcnow(),
         "created_at": datetime.utcnow(),
     }
     result = await db.students.insert_one(doc)
     doc["_id"] = result.inserted_id
-    return await student_doc_to_response(doc)
+    return await student_doc_to_response(doc, user_id)
 
 
 @router.put("/{student_id}")
-async def update_student(student_id: str, data: StudentUpdate):
+async def update_student(student_id: str, data: StudentUpdate, request: Request):
     db = get_database()
+    user_id = request.state.user_id
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
     # Verify batch if being updated
     if "batch_id" in update_data:
         try:
-            batch = await db.batches.find_one({"_id": ObjectId(update_data["batch_id"])})
+            batch = await db.batches.find_one({"_id": ObjectId(update_data["batch_id"]), "user_id": user_id})
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid batch ID")
         if not batch:
             raise HTTPException(status_code=404, detail="Batch not found")
     try:
         result = await db.students.update_one(
-            {"_id": ObjectId(student_id)}, {"$set": update_data}
+            {"_id": ObjectId(student_id), "user_id": user_id}, {"$set": update_data}
         )
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid student ID")
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Student not found")
-    student = await db.students.find_one({"_id": ObjectId(student_id)})
-    return await student_doc_to_response(student)
+    student = await db.students.find_one({"_id": ObjectId(student_id), "user_id": user_id})
+    return await student_doc_to_response(student, user_id)
 
 
 @router.delete("/{student_id}")
-async def delete_student(student_id: str):
+async def delete_student(student_id: str, request: Request):
     db = get_database()
+    user_id = request.state.user_id
     try:
         # Delete all fee records for this student
-        await db.fee_records.delete_many({"student_id": student_id})
-        result = await db.students.delete_one({"_id": ObjectId(student_id)})
+        await db.fee_records.delete_many({"student_id": student_id, "user_id": user_id})
+        result = await db.students.delete_one({"_id": ObjectId(student_id), "user_id": user_id})
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid student ID")
     if result.deleted_count == 0:

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from bson import ObjectId
 from datetime import datetime
 
@@ -21,37 +21,41 @@ def batch_doc_to_response(doc: dict, student_count: int = 0) -> dict:
 
 
 @router.get("")
-async def list_batches():
+async def list_batches(request: Request):
     db = get_database()
-    batches = await db.batches.find().sort("created_at", -1).to_list(100)
+    user_id = request.state.user_id
+    batches = await db.batches.find({"user_id": user_id}).sort("created_at", -1).to_list(100)
     result = []
     for batch in batches:
-        count = await db.students.count_documents({"batch_id": str(batch["_id"])})
+        count = await db.students.count_documents({"batch_id": str(batch["_id"]), "user_id": user_id})
         result.append(batch_doc_to_response(batch, count))
     return result
 
 
 @router.get("/{batch_id}")
-async def get_batch(batch_id: str):
+async def get_batch(batch_id: str, request: Request):
     db = get_database()
+    user_id = request.state.user_id
     try:
-        batch = await db.batches.find_one({"_id": ObjectId(batch_id)})
+        batch = await db.batches.find_one({"_id": ObjectId(batch_id), "user_id": user_id})
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid batch ID")
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
-    count = await db.students.count_documents({"batch_id": batch_id})
+    count = await db.students.count_documents({"batch_id": batch_id, "user_id": user_id})
     return batch_doc_to_response(batch, count)
 
 
 @router.post("", status_code=201)
-async def create_batch(data: BatchCreate):
+async def create_batch(data: BatchCreate, request: Request):
     db = get_database()
+    user_id = request.state.user_id
     doc = {
         "name": data.name,
         "type": data.type,
         "location": data.location,
         "timing": data.timing,
+        "user_id": user_id,
         "created_at": datetime.utcnow(),
     }
     result = await db.batches.insert_one(doc)
@@ -60,37 +64,39 @@ async def create_batch(data: BatchCreate):
 
 
 @router.put("/{batch_id}")
-async def update_batch(batch_id: str, data: BatchUpdate):
+async def update_batch(batch_id: str, data: BatchUpdate, request: Request):
     db = get_database()
+    user_id = request.state.user_id
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
     try:
         result = await db.batches.update_one(
-            {"_id": ObjectId(batch_id)}, {"$set": update_data}
+            {"_id": ObjectId(batch_id), "user_id": user_id}, {"$set": update_data}
         )
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid batch ID")
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Batch not found")
-    batch = await db.batches.find_one({"_id": ObjectId(batch_id)})
-    count = await db.students.count_documents({"batch_id": batch_id})
+    batch = await db.batches.find_one({"_id": ObjectId(batch_id), "user_id": user_id})
+    count = await db.students.count_documents({"batch_id": batch_id, "user_id": user_id})
     return batch_doc_to_response(batch, count)
 
 
 @router.delete("/{batch_id}")
-async def delete_batch(batch_id: str):
+async def delete_batch(batch_id: str, request: Request):
     db = get_database()
+    user_id = request.state.user_id
     try:
         # Delete all fee records for students in this batch
-        students = await db.students.find({"batch_id": batch_id}).to_list(1000)
+        students = await db.students.find({"batch_id": batch_id, "user_id": user_id}).to_list(1000)
         student_ids = [str(s["_id"]) for s in students]
         if student_ids:
-            await db.fee_records.delete_many({"student_id": {"$in": student_ids}})
+            await db.fee_records.delete_many({"student_id": {"$in": student_ids}, "user_id": user_id})
         # Delete all students in this batch
-        await db.students.delete_many({"batch_id": batch_id})
+        await db.students.delete_many({"batch_id": batch_id, "user_id": user_id})
         # Delete the batch
-        result = await db.batches.delete_one({"_id": ObjectId(batch_id)})
+        result = await db.batches.delete_one({"_id": ObjectId(batch_id), "user_id": user_id})
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid batch ID")
     if result.deleted_count == 0:
