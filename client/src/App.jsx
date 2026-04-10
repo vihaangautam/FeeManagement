@@ -5,7 +5,9 @@ import Dashboard from './pages/Dashboard';
 import Batches from './pages/Batches';
 import Fees from './pages/Fees';
 import Reports from './pages/Reports';
+import LessonCopilot from './pages/LessonCopilot';
 import Login from './pages/Login';
+import LandingPage from './pages/LandingPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -34,6 +36,7 @@ function AppRoutes() {
 
   return (
     <Routes>
+      <Route path="/landing" element={<LandingPage />} />
       <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
       <Route
         path="/*"
@@ -45,6 +48,7 @@ function AppRoutes() {
                 <Route path="/batches" element={<Batches />} />
                 <Route path="/fees" element={<Fees />} />
                 <Route path="/reports" element={<Reports />} />
+                <Route path="/lessons" element={<LessonCopilot />} />
               </Routes>
             </Layout>
           </ProtectedRoute>

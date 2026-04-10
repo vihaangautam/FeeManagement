@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, IndianRupee, FileSpreadsheet, LogOut, GraduationCap } from 'lucide-react';
+import { LayoutDashboard, Users, IndianRupee, FileSpreadsheet, LogOut, GraduationCap, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const links = [
@@ -7,6 +7,7 @@ const links = [
   { to: '/batches', label: 'Batches', icon: Users },
   { to: '/fees', label: 'Log Fees', icon: IndianRupee },
   { to: '/reports', label: 'Reports', icon: FileSpreadsheet },
+  { to: '/lessons', label: 'Lesson Copilot', icon: Sparkles },
 ];
 
 export default function Sidebar() {
