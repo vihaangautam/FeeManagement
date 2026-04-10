@@ -20,7 +20,7 @@ function ProtectedRoute({ children }) {
     );
   }
 
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+  return isAuthenticated ? children : <Navigate to="/" replace />;
 }
 
 function AppRoutes() {
@@ -36,15 +36,18 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/landing" element={<LandingPage />} />
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
+      {/* Public: landing page is the homepage for visitors */}
+      <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
+
+      {/* Protected app routes */}
       <Route
         path="/*"
         element={
           <ProtectedRoute>
             <Layout>
               <Routes>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/batches" element={<Batches />} />
                 <Route path="/fees" element={<Fees />} />
                 <Route path="/reports" element={<Reports />} />

@@ -3,7 +3,7 @@ import { LayoutDashboard, Users, IndianRupee, FileSpreadsheet, LogOut, Graduatio
 import { useAuth } from '../context/AuthContext';
 
 const links = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/batches', label: 'Batches', icon: Users },
   { to: '/fees', label: 'Log Fees', icon: IndianRupee },
   { to: '/reports', label: 'Reports', icon: FileSpreadsheet },

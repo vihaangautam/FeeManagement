@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, IndianRupee, FileSpreadsheet, Sparkles } from 'lucide-react';
 
 const links = [
-  { to: '/', label: 'Home', icon: LayoutDashboard },
+  { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
   { to: '/batches', label: 'Batches', icon: Users },
   { to: '/fees', label: 'Fees', icon: IndianRupee },
   { to: '/reports', label: 'Reports', icon: FileSpreadsheet },
