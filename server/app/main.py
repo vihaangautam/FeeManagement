@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 
 from app.database import connect_to_mongo, close_mongo_connection
 from app.auth import decode_token
-from app.routes import batches, students, fee_records, dashboard, auth
+from app.routes import batches, students, fee_records, dashboard, auth, lessons
 
 app = FastAPI(
     title="TutorFlow API",
@@ -64,6 +64,7 @@ app.include_router(batches.router)
 app.include_router(students.router)
 app.include_router(fee_records.router)
 app.include_router(dashboard.router)
+app.include_router(lessons.router)
 
 
 @app.get("/")

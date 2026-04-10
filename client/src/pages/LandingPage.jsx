@@ -245,7 +245,7 @@ function TechStack() {
   const techs = [
     { name: 'FastAPI', color: 'text-emerald-400' },
     { name: 'React', color: 'text-cyan-400' },
-    { name: 'OpenAI', color: 'text-violet-400' },
+    { name: 'Gemini AI', color: 'text-violet-400' },
     { name: 'Excel+', color: 'text-green-400' },
     { name: 'MongoDB', color: 'text-emerald-400' },
   ];
@@ -265,7 +265,7 @@ function TechStack() {
             </h2>
             <p className="text-text-secondary text-sm leading-relaxed max-w-lg mb-8">
               Built with a modern, high-performing architecture for seamless interfaces and reliable data management.
-              Our AI integration leverages state-of-the-art models to ensure your lesson plans are accurate, relevant, and engaging.
+              Our AI integration leverages state-of-the-art Google Gemini models to ensure your lesson plans are accurate, relevant, and engaging.
             </p>
 
             <div className="flex flex-wrap gap-3">
