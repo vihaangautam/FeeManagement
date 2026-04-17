@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, IndianRupee, Sparkles, Users, BookOpen, BarChart3, ArrowRight, Play, CheckCircle2, ChevronRight, Zap, Shield } from 'lucide-react';
+import { LayoutDashboard, IndianRupee, Sparkles, Users, BookOpen, BarChart3, ArrowRight, CheckCircle2, ChevronRight, Zap, Shield } from 'lucide-react';
 import './landing.css';
 
 /* ─── Intersection Observer for scroll reveals ─────────── */
@@ -88,10 +88,6 @@ function Hero({ onNavigate }) {
             >
               Get Started for Free
               <ArrowRight size={16} />
-            </button>
-            <button className="btn bg-bg-tertiary text-text-primary border border-border hover:border-border-light hover:bg-border transition-all">
-              <Play size={16} className="text-accent" />
-              Watch Demo
             </button>
           </div>
           <div className="flex items-center gap-4 pt-2 text-xs text-text-muted">
@@ -307,13 +303,10 @@ function CTASection({ onNavigate }) {
             onClick={() => onNavigate('/login')}
             className="btn bg-accent text-white hover:bg-accent-hover shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all text-base px-7 py-3"
           >
-            Start Free Trial
-          </button>
-          <button className="btn bg-bg-tertiary text-text-primary border border-border hover:border-border-light hover:bg-border transition-all text-base px-7 py-3">
-            Book a Consultation
+            Get Started for Free
           </button>
         </div>
-        <p className="text-text-muted text-xs mt-5">✓ No credit card required · 14-day free trial</p>
+        <p className="text-text-muted text-xs mt-5">✓ Free forever plan · No credit card required</p>
       </div>
     </section>
   );
