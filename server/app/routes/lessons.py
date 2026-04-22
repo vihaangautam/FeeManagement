@@ -6,6 +6,7 @@ Generates AI-powered lesson slides using Google Gemini, with Wikimedia image sup
 import os
 import json
 import re
+import asyncio
 import httpx
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -166,20 +167,47 @@ async def call_gemini(prompt: str) -> list:
             "responseMimeType": "application/json",
         },
     }
-    gemini_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.post(
-            f"{gemini_url}?key={gemini_api_key}",
-            json=payload,
-            headers={"Content-Type": "application/json"},
-        )
+    # Primary model + fallback if primary is overloaded
+    models = [
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+    ]
+    base_url = "https://generativelanguage.googleapis.com/v1beta/models"
+    max_retries = 3
 
-    if resp.status_code != 200:
-        error_detail = resp.text[:300]
+    last_error = None
+    for model in models:
+        gemini_url = f"{base_url}/{model}:generateContent"
+        for attempt in range(max_retries):
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                resp = await client.post(
+                    f"{gemini_url}?key={gemini_api_key}",
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                )
+
+            if resp.status_code == 200:
+                break  # Success — exit retry loop
+            elif resp.status_code == 503:
+                last_error = f"{model} unavailable (attempt {attempt + 1}/{max_retries})"
+                wait_time = (2 ** attempt) + 1  # 2s, 3s, 5s
+                await asyncio.sleep(wait_time)
+            else:
+                error_detail = resp.text[:300]
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Gemini API error ({resp.status_code}): {error_detail}"
+                )
+        else:
+            # All retries exhausted for this model — try the next one
+            continue
+        break  # Success — exit model loop
+    else:
+        # All models and retries exhausted
         raise HTTPException(
-            status_code=502,
-            detail=f"Gemini API error ({resp.status_code}): {error_detail}"
+            status_code=503,
+            detail=f"Gemini API is temporarily overloaded. Please try again in a minute. Last: {last_error}"
         )
 
     data = resp.json()
